@@ -1,0 +1,27 @@
+# Data and generated outputs
+data/
+outputs/
+
+# Model checkpoints
+models/*.pth
+
+# Jupyter notebooks not meant for repo
+app.ipynb
+.ipynb_checkpoints/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.env/
+.venv/
+
+# Environment variables
+.env
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,15 @@
+streamlit
+streamlit-folium
+streamlit-image-select
+torch
+segment-anything
+rasterio
+opencv-python
+matplotlib
+numpy
+pillow
+rasterstats
+laspy
+geopandas
+folium
+mapclassify
