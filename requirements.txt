@@ -2,6 +2,7 @@ streamlit
 streamlit-folium
 streamlit-image-select
 torch
+torchvision
 segment-anything
 rasterio
 opencv-python
