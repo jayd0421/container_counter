@@ -31,7 +31,6 @@ def generate_container_segment_masks(
     
     with rasterio.open(user_selected_image_path) as src:
         user_selected_image = src.read([1, 2, 3]).transpose([1, 2, 0])
-        transform = src.transform
         
     #clear GPU memory
     torch.cuda.empty_cache()
@@ -41,23 +40,23 @@ def generate_container_segment_masks(
     sam.to("cuda" if torch.cuda.is_available() else "cpu")
 
     #model configuration
-    # mask_generator = SamAutomaticMaskGenerator(
-    #     model=sam,
-    #     points_per_side=points_per_side,
-    #     pred_iou_thresh=pred_iou_thresh,
-    #     stability_score_thresh=stability_score_thresh,
-    #     min_mask_region_area=min_mask_region_area,
-    # )
-    
     mask_generator = SamAutomaticMaskGenerator(
         model=sam,
-        points_per_side=64,
-        crop_n_layers=1,
-        crop_n_points_downscale_factor=2,
-        pred_iou_thresh=0.90,
-        stability_score_thresh=0.90,
-        min_mask_region_area=1000,
+        points_per_side=points_per_side,
+        pred_iou_thresh=pred_iou_thresh,
+        stability_score_thresh=stability_score_thresh,
+        min_mask_region_area=min_mask_region_area,
     )
+    
+    # mask_generator = SamAutomaticMaskGenerator(
+    #     model=sam,
+    #     points_per_side=64,
+    #     crop_n_layers=1,
+    #     crop_n_points_downscale_factor=2,
+    #     pred_iou_thresh=0.90,
+    #     stability_score_thresh=0.90,
+    #     min_mask_region_area=1000,
+    # )
 
     masks = mask_generator.generate(user_selected_image)
     
@@ -466,6 +465,6 @@ def add_3d_visualisation(container_boxes_gdf):
         # },
     )
     
-    deck.to_html("test.html")
+    # deck.to_html("test.html")
     st.pydeck_chart(deck)
     
