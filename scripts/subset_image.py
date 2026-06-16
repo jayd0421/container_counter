@@ -21,9 +21,10 @@ def tiff_to_jpeg(tiff_path, jpeg_path=None, quality=95):
     quality : int
         JPEG quality from 1 to 100.
     """
-
+    
+    os.makedirs("outputs/", exist_ok=True)
     tiff_path = Path(tiff_path)
-
+    
     if jpeg_path is None:
         jpeg_path = tiff_path.with_suffix(".jpg")
     else:
