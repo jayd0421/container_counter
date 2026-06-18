@@ -7,6 +7,7 @@ import math
 import os
 import json
 import shutil
+from datetime import datetime
 
 def tiff_to_jpeg(tiff_path, jpeg_path=None, quality=95):
     """
@@ -81,6 +82,8 @@ def tile_jpeg_preview_with_metadata(
     if prefix is None:
         prefix = jpeg_path.stem
 
+    current_timestamp = datetime.now().strftime("%H%M%S")
+
     with Image.open(jpeg_path) as jpeg_img, Image.open(tiff_path) as tiff_img:
         jpeg_img = jpeg_img.convert("RGB")
 
@@ -106,7 +109,7 @@ def tile_jpeg_preview_with_metadata(
                     (jpeg_left, jpeg_top, jpeg_right, jpeg_bottom)
                 )
 
-                tile_name = f"{prefix}_r{row + 1}_c{col + 1}.jpg"
+                tile_name = f"{prefix}_r{row + 1}_c{col + 1}_{current_timestamp}.jpg"
                 tile_path = output_dir / tile_name
 
                 tile.save(tile_path, "JPEG", quality=quality)

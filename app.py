@@ -88,15 +88,18 @@ if st.session_state.page == "subset":
                     rows_col, cols_col = st.columns([1, 1])
                     with rows_col:
                         n_rows = st.number_input(
-                            "Tile rows", value=4, min_value=2, max_value=6, key="rows",
-                            on_change=si.clear_tiles_output_folder(TILES_OUTPUT_PATH),
-                        )
+                            "Tile rows", 
+                            value=4, min_value=2, max_value=10, key="rows",
+                            on_change=si.clear_tiles_output_folder(TILES_OUTPUT_PATH)
+                            )
+                    
                     with cols_col:
                         n_cols = st.number_input(
-                            "Tile columns", value=4, min_value=2, max_value=6, key="cols",
-                            on_change=si.clear_tiles_output_folder(TILES_OUTPUT_PATH),
-                        )
-
+                            "Tile columns", 
+                            value=4, min_value=2, max_value=10, key="cols",
+                            on_change=si.clear_tiles_output_folder(TILES_OUTPUT_PATH)
+                            )
+                        
                 metadata = si.tile_jpeg_preview_with_metadata(
                     jpeg_path=PREVIEW_IMAGE_PATH,
                     tiff_path=RGB_TIFF_PATH,

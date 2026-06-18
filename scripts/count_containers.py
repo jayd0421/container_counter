@@ -66,7 +66,7 @@ def convert_masks_to_boxes(masks):
     boxes = []
 
     for mask in masks:
-        # if (mask['area'] < 15000) and (mask['area'] > 2000):
+        if (mask['area'] < 15000) and (mask['area'] > 2000):
             m = mask['segmentation'].astype(np.uint8)
             
             contours, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -329,11 +329,11 @@ def add_dsm_elevation_stats(
 def filter_clean_container_boxes_gdf(container_boxes_gdf, ground_elevation=51):
     std_z_filter = 5 # to filter out very tall flood lights in image
     
-    container_boxes_gdf = container_boxes_gdf[(container_boxes_gdf['std_z'] < std_z_filter)]
+    # container_boxes_gdf = container_boxes_gdf[(container_boxes_gdf['std_z'] < std_z_filter)]
     
-    container_boxes_gdf = container_boxes_gdf[(container_boxes_gdf['mean_z'] > 51)]
+    # container_boxes_gdf = container_boxes_gdf[(container_boxes_gdf['mean_z'] > 51)]
     
-    container_boxes_gdf = container_boxes_gdf[(container_boxes_gdf['area_px'] > 2000) & (container_boxes_gdf['area_px'] < 15000)]
+    # container_boxes_gdf = container_boxes_gdf[(container_boxes_gdf['area_px'] > 2000) & (container_boxes_gdf['area_px'] < 15000)]
     
     container_boxes_gdf['elev'] = round(container_boxes_gdf['mean_z'] - container_boxes_gdf['dsm_mean'], 2)
     
