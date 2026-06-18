@@ -18,6 +18,7 @@ import laspy
 
 import json
 import geopandas as gpd
+from shapely.geometry import box
 
 import pydeck as pdk
 
@@ -66,7 +67,7 @@ def convert_masks_to_boxes(masks):
     boxes = []
 
     for mask in masks:
-        if (mask['area'] < 15000) and (mask['area'] > 2000):
+        # if (mask['area'] < 15000) and (mask['area'] > 2000):
             m = mask['segmentation'].astype(np.uint8)
             
             contours, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -164,15 +165,15 @@ def pixel_bounds_to_map_bounds(tiff_path, bounds):
             "crs": src.crs
         }
 
-def filter_las_by_map_bounds(las_path, output_las_path, map_bounds):
+def filter_las_by_map_bounds(las_path, output_las_path, map_bounds, zmax=81):
     """
     Filter a LAS/LAZ file using map bounds derived from a cropped TIFF.
     """
-
     las = laspy.read(las_path)
 
     x = las.x
     y = las.y
+    z = las.z
 
     mask = (
         (x >= map_bounds["xmin"]) &
@@ -181,16 +182,19 @@ def filter_las_by_map_bounds(las_path, output_las_path, map_bounds):
         (y <= map_bounds["ymax"])
     )
 
+    if zmax is not None:
+        mask &= (z <= zmax)
+
     cropped_las = laspy.LasData(las.header)
     cropped_las.points = las.points[mask]
 
     cropped_las.write(output_las_path)
-    
+
     return output_las_path
 
-
-def add_las_elevation_stats(geojson_path, filtered_las_path):
-    gdf = gpd.read_file(geojson_path)
+def add_las_elevation_stats(filtered_las_path, geojson_path=None, gdf=None):
+    if geojson_path is not None:
+        gdf = gpd.read_file(geojson_path)
     
     las = laspy.read(filtered_las_path)
     x = np.array(las.x)
@@ -264,6 +268,25 @@ def crop_dsm_by_map_bounds(
 
     return output_dsm_path
 
+def crop_reference_container_geojson(
+    map_bounds,
+    reference_geo_json_path="data/Containers.geojson"
+):
+    reference_gdf = gpd.read_file(reference_geo_json_path)
+
+    bbox = box(
+        map_bounds["xmin"],
+        map_bounds["ymin"],
+        map_bounds["xmax"],
+        map_bounds["ymax"],
+    )
+
+    cropped_reference_gdf = reference_gdf[
+        reference_gdf.intersects(bbox)
+    ]
+
+    return cropped_reference_gdf
+
 def add_dsm_elevation_stats(
     container_boxes_gdf,
     dsm_tiff_path,
@@ -326,18 +349,9 @@ def add_dsm_elevation_stats(
 
     return stats_gdf
 
-def filter_clean_container_boxes_gdf(container_boxes_gdf, ground_elevation=51):
-    std_z_filter = 5 # to filter out very tall flood lights in image
-    
-    # container_boxes_gdf = container_boxes_gdf[(container_boxes_gdf['std_z'] < std_z_filter)]
-    
-    # container_boxes_gdf = container_boxes_gdf[(container_boxes_gdf['mean_z'] > 51)]
-    
-    # container_boxes_gdf = container_boxes_gdf[(container_boxes_gdf['area_px'] > 2000) & (container_boxes_gdf['area_px'] < 15000)]
-    
-    container_boxes_gdf['elev'] = round(container_boxes_gdf['mean_z'] - container_boxes_gdf['dsm_mean'], 2)
-    
-    container_boxes_gdf = container_boxes_gdf[(container_boxes_gdf['elev'] > 3)]
+def add_elevation(container_boxes_gdf):
+    # container_boxes_gdf['elev'] = round(container_boxes_gdf['median_z'] - container_boxes_gdf['dsm_median'], 2)
+    container_boxes_gdf['elev'] = round(container_boxes_gdf['median_z'] - 50, 2)
     
     container_boxes_gdf['base_height'] = 0
     
@@ -346,6 +360,24 @@ def filter_clean_container_boxes_gdf(container_boxes_gdf, ground_elevation=51):
     container_boxes_gdf.loc[mask, "base_height"] = 16
     
     container_boxes_gdf['elev'] = round(container_boxes_gdf['elev'], 2)
+    
+    return container_boxes_gdf
+
+def filter_clean_container_boxes_gdf(container_boxes_gdf, ground_elevation=51):
+    container_boxes_gdf['area'] = container_boxes_gdf.area
+    std_z_filter = 5 # to filter out very tall flood lights in image
+    min_aspect_ratio = 2
+    min_elevation, max_elevation = 3, 18
+    
+    # container_boxes_gdf = container_boxes_gdf[(container_boxes_gdf['std_z'] < std_z_filter)]
+    
+    # container_boxes_gdf = container_boxes_gdf[(container_boxes_gdf['mean_z'] > 51)]
+    
+    container_boxes_gdf = container_boxes_gdf[(container_boxes_gdf['area'] > 15) & (container_boxes_gdf['area'] < 40)]
+    
+    container_boxes_gdf = container_boxes_gdf[(container_boxes_gdf['aspect_ratio'] > min_aspect_ratio)]
+    
+    container_boxes_gdf = container_boxes_gdf[(container_boxes_gdf['elev'] > min_elevation) & (container_boxes_gdf['elev'] < max_elevation)]
     
     return container_boxes_gdf
 
@@ -378,7 +410,7 @@ def add_color_to_containers(user_selected_aoi_path, container_boxes_gdf):
     
     return container_boxes_gdf
 
-def plot_image(container_boxes_gdf, user_selected_aoi_path, image_out_path='outputs/preview_tiles/image.jpg'):
+def plot_image(container_boxes_gdf, reference_containers_gdf, user_selected_aoi_path, image_out_path='outputs/preview_tiles/image.jpg'):
     with rasterio.open(user_selected_aoi_path) as src:
         selected_image = src.read([1, 2, 3]).transpose([1, 2, 0])
         bounds = src.bounds
@@ -392,6 +424,11 @@ def plot_image(container_boxes_gdf, user_selected_aoi_path, image_out_path='outp
             bounds.bottom,
             bounds.top
         ])
+    
+    reference_containers_gdf.plot(ax=ax,
+        facecolor="none",
+        edgecolor="green",
+        linewidth=2)
 
     container_boxes_gdf.plot(ax=ax,
         facecolor="none",
@@ -446,23 +483,29 @@ def add_3d_visualisation(container_boxes_gdf):
         initial_view_state=view_state,
         map_style=pdk.map_styles.LIGHT,
         # map_style="mapbox://styles/mapbox/satellite-v9",
-        tooltip = {
-            "html": """
-            <b>Stack height:</b> {elev}<br>
-    #       <b>Containers:</b> {n_containers}
-            """,
-            "style": {"color": "white"},
-        },
-        #  tooltip = {
+        # tooltip = {
         #     "html": """
-        #     <b>Height:</b> {elev}<br>
-        #     <b>mean_z:</b> {mean_z}<br>
-        #     <b>median_z:</b> {median_z}<br>
-        #     <b>dsm_mean:</b> {dsm_mean}<br>
-        #     <b>dsm_median:</b> {dsm_median}
+        #     <b>Stack height:</b> {elev}<br>
+        #     <b>Containers:</b> {n_containers}
         #     """,
         #     "style": {"color": "white"},
         # },
+         tooltip = {
+            "html": """
+            <b>Stack height:</b> {elev}<br>
+            <b>Containers:</b> {n_containers}<br>
+            <b>mean_z:</b> {mean_z}<br>
+            <b>median_z:</b> {median_z}<br>
+            <b>dsm_mean:</b> {dsm_mean}<br>
+            <b>dsm_median:</b> {dsm_median}<br>
+            <b>std_z:</b> {std_z}<br>
+            <b>area_px:</b> {area_px}<br>
+            <b>area:</b> {area}<br>
+            <b>aspect_ratio:</b> {aspect_ratio}<br>
+            <b>point_count:</b> {point_count}
+            """,
+            "style": {"color": "white"},
+        },
     )
     
     # deck.to_html("test.html")
