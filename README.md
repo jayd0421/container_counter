@@ -132,11 +132,6 @@ After elevation statistics are added, a second round of filtering removes non-co
 - **`area_px` between 2,000 and 15,000** - removes segments that are too small (noise) or too large (buildings, open ground) to plausibly be individual container stacks.
 - **`elev > 3`** -  removes any polygon whose calculated above-ground height is less than 3 metres, filtering out detections sitting at or near ground level.
 
-### Platform correction
-
-At some sites, containers are stacked on elevated platforms or plinths. Where calculated stack height exceeds 18 metres, 16 metres is subtracted from the elevation and stored separately as `base_height`. This offset is used to set the base elevation of the extruded polygon in the 3D visualisation, so the stack appears to sit on its platform rather than floating at ground level.
-
-
 
 ## Installation
 
