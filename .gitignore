@@ -1,6 +1,9 @@
 # Data and generated outputs
-data/
+data/*
 outputs/
+
+!data/
+!data/*.geojson
 
 # Model checkpoints
 models/*.pth
