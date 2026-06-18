@@ -35,7 +35,7 @@ CROPPED_DSM_PATH = "outputs/preview_tiles/cropped_dsm.tif"
 TILES_OUTPUT_PATH = "outputs/preview_tiles"
 SAM_MODEL_PATH = "models/sam_vit_b_01ec64.pth"
 
-GROUND_ELEVATION = 51
+# GROUND_ELEVATION = 51
 
 subset_tab, container_count_tab = st.tabs(["Subset image", "Count containers"])
 
@@ -100,7 +100,7 @@ with subset_tab:
                             "Tile rows", 
                             value=4, 
                             min_value=2, 
-                            max_value=6,
+                            max_value=10,
                             key="rows",
                             on_change=si.clear_tiles_output_folder(TILES_OUTPUT_PATH)
                             )
@@ -110,7 +110,7 @@ with subset_tab:
                             "Tile columns", 
                             value=4, 
                             min_value=2, 
-                            max_value=6,
+                            max_value=10,
                             key="cols",
                             on_change=si.clear_tiles_output_folder(TILES_OUTPUT_PATH)
                             )
@@ -144,6 +144,8 @@ with subset_tab:
                     output_path=USER_SELECTED_AOI_PATH,
                     bounds=tiff_crop_bounds
                 )
+                
+                st.session_state
             
 with container_count_tab:
     if count_containers:
@@ -171,7 +173,7 @@ with container_count_tab:
             # st.table(container_boxes_gdf)
             
         with st.spinner(text="Cleaning container segments...", show_time=True, width="content"):
-            filtered_container_boxes_gdf = cc.filter_clean_container_boxes_gdf(container_boxes_gdf, GROUND_ELEVATION)
+            filtered_container_boxes_gdf = cc.filter_clean_container_boxes_gdf(container_boxes_gdf) # , GROUND_ELEVATION)
             
             filtered_container_boxes_gdf = cc.add_color_to_containers(USER_SELECTED_AOI_PATH, filtered_container_boxes_gdf)
             
