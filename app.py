@@ -22,7 +22,6 @@ FILTERED_LAS_PATH = "outputs/preview_tiles/filtered_las.las"
 CROPPED_DSM_PATH = "outputs/preview_tiles/cropped_dsm.tif"
 TILES_OUTPUT_PATH = "outputs/preview_tiles"
 SAM_MODEL_PATH = "models/sam_vit_b_01ec64.pth"
-GROUND_ELEVATION = 51
 
 # --- Session state defaults ---
 if "page" not in st.session_state:
@@ -161,7 +160,7 @@ elif st.session_state.page == "count":
         container_boxes_gdf = cc.add_dsm_elevation_stats(container_boxes_gdf, cropped_dsm_path)
 
     with st.spinner(text="Cleaning container segments...", show_time=True, width="content"):
-        filtered_container_boxes_gdf = cc.filter_clean_container_boxes_gdf(container_boxes_gdf, GROUND_ELEVATION)
+        filtered_container_boxes_gdf = cc.filter_clean_container_boxes_gdf(container_boxes_gdf)
         filtered_container_boxes_gdf = cc.add_color_to_containers(USER_SELECTED_AOI_PATH, filtered_container_boxes_gdf)
         filtered_container_boxes_gdf["n_containers"] = round(filtered_container_boxes_gdf["elev"] / CONTAINER_HEIGHT, 0)
         n_containers = int(filtered_container_boxes_gdf.n_containers.sum())
