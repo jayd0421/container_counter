@@ -295,7 +295,7 @@ def add_dsm_elevation_stats(
     prefix="dsm_"
 ):
     """
-    Add elevation statistics from a DSM TIFF to polygons.
+    Add stack_heightation statistics from a DSM TIFF to polygons.
 
     Parameters
     ----------
@@ -349,25 +349,40 @@ def add_dsm_elevation_stats(
 
     return stats_gdf
 
-def add_elevation(container_boxes_gdf):
-    # container_boxes_gdf['elev'] = round(container_boxes_gdf['median_z'] - container_boxes_gdf['dsm_median'], 2)
-    container_boxes_gdf['elev'] = round(container_boxes_gdf['median_z'] - 50, 2)
+def add_stack_elevation(container_boxes_gdf):
+    GROUND_ELEVATION = 50.0
+    SHIP_DECK_ELEVATION = 62.5
+    WATER_DSM_ELEVATION = 46.5#43.7#46.5
     
-    container_boxes_gdf['base_height'] = 0
+    base_height = SHIP_DECK_ELEVATION - GROUND_ELEVATION
     
-    mask = container_boxes_gdf["elev"] > 18
-    container_boxes_gdf.loc[mask, "elev"] -= 16
-    container_boxes_gdf.loc[mask, "base_height"] = 16
-    
-    container_boxes_gdf['elev'] = round(container_boxes_gdf['elev'], 2)
-    
+
+    ship_mask = container_boxes_gdf["dsm_median"] < WATER_DSM_ELEVATION
+
+    container_boxes_gdf["stack_height"] = (
+        container_boxes_gdf["median_z"] - GROUND_ELEVATION
+    )
+
+    container_boxes_gdf.loc[ship_mask, "stack_height"] = (
+        container_boxes_gdf.loc[ship_mask, "median_z"]
+        - SHIP_DECK_ELEVATION
+    )
+
+    # ship_mask = container_boxes_gdf["dsm_median"] < 46.5
+    container_boxes_gdf["base_height"] = 0.0
+    container_boxes_gdf.loc[ship_mask, "base_height"] = base_height
+
+    container_boxes_gdf["stack_height"] = (
+        container_boxes_gdf["stack_height"].round(2)
+    )
+
     return container_boxes_gdf
 
-def filter_clean_container_boxes_gdf(container_boxes_gdf, ground_elevation=51):
+def filter_clean_container_boxes_gdf(container_boxes_gdf):
     container_boxes_gdf['area'] = container_boxes_gdf.area
     std_z_filter = 5 # to filter out very tall flood lights in image
     min_aspect_ratio = 2
-    min_elevation, max_elevation = 3, 18
+    min_stack_height = 2
     
     # container_boxes_gdf = container_boxes_gdf[(container_boxes_gdf['std_z'] < std_z_filter)]
     
@@ -377,11 +392,17 @@ def filter_clean_container_boxes_gdf(container_boxes_gdf, ground_elevation=51):
     
     container_boxes_gdf = container_boxes_gdf[(container_boxes_gdf['aspect_ratio'] > min_aspect_ratio)]
     
-    container_boxes_gdf = container_boxes_gdf[(container_boxes_gdf['elev'] > min_elevation) & (container_boxes_gdf['elev'] < max_elevation)]
+    container_boxes_gdf = container_boxes_gdf[(container_boxes_gdf['stack_height'] >= min_stack_height)]
     
     return container_boxes_gdf
 
-def add_color_to_containers(user_selected_aoi_path, container_boxes_gdf):
+
+def add_color_to_containers(
+    user_selected_aoi_path,
+    container_boxes_gdf,
+    reference_container=False,
+    brightness_threshold=130
+):
     colors = []
 
     with rasterio.open(user_selected_aoi_path) as src:
@@ -389,10 +410,8 @@ def add_color_to_containers(user_selected_aoi_path, container_boxes_gdf):
         for geom in container_boxes_gdf.geometry:
             out_image, _ = mask(src, [geom], crop=True)
 
-            # Assuming RGB raster with shape (bands, rows, cols)
             rgb = out_image[:3]
 
-            # Remove nodata pixels
             valid = np.all(rgb > 0, axis=0)
 
             if valid.any():
@@ -402,12 +421,21 @@ def add_color_to_containers(user_selected_aoi_path, container_boxes_gdf):
                     int(rgb[2][valid].mean())
                 ]
             else:
-                mean_color = [128, 128, 128]
+                mean_color = [0, 0, 0]
 
             colors.append(mean_color)
 
     container_boxes_gdf["color"] = colors
-    
+
+    if not reference_container:
+        mean_colors = np.array(colors)
+
+        brightness = mean_colors.mean(axis=1)  # average of R,G,B per container
+
+        container_boxes_gdf = container_boxes_gdf[
+            brightness >= brightness_threshold
+        ].copy()
+
     return container_boxes_gdf
 
 def plot_image(container_boxes_gdf, reference_containers_gdf, user_selected_aoi_path, image_out_path='outputs/preview_tiles/image.jpg'):
@@ -435,7 +463,7 @@ def plot_image(container_boxes_gdf, reference_containers_gdf, user_selected_aoi_
         edgecolor="red",
         linewidth=1)
     ax.axis('off')
-    # ax.set_title(f"{len(container_boxes_gdf)} boxes")
+    ax.set_title("Detected containers (Red) vs Actual containers (Green)")
     plt.savefig(image_out_path, dpi=150, bbox_inches='tight')
     
     return image_out_path
@@ -462,7 +490,7 @@ def add_3d_visualisation(container_boxes_gdf):
         get_polygon="geometry.coordinates",
         get_fill_color="color",
         get_line_color=[255, 255, 255],
-        get_elevation="elev",
+        get_elevation="stack_height",
         extruded=True,
         # wireframe=True,
         pickable=True,
@@ -485,14 +513,14 @@ def add_3d_visualisation(container_boxes_gdf):
         # map_style="mapbox://styles/mapbox/satellite-v9",
         # tooltip = {
         #     "html": """
-        #     <b>Stack height:</b> {elev}<br>
+        #     <b>Stack height:</b> {stack_height}<br>
         #     <b>Containers:</b> {n_containers}
         #     """,
         #     "style": {"color": "white"},
         # },
          tooltip = {
             "html": """
-            <b>Stack height:</b> {elev}<br>
+            <b>Stack height:</b> {stack_height}<br>
             <b>Containers:</b> {n_containers}<br>
             <b>mean_z:</b> {mean_z}<br>
             <b>median_z:</b> {median_z}<br>
@@ -502,7 +530,8 @@ def add_3d_visualisation(container_boxes_gdf):
             <b>area_px:</b> {area_px}<br>
             <b>area:</b> {area}<br>
             <b>aspect_ratio:</b> {aspect_ratio}<br>
-            <b>point_count:</b> {point_count}
+            <b>point_count:</b> {point_count}<br>
+            <b>color:</b> {color}
             """,
             "style": {"color": "white"},
         },

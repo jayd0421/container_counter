@@ -163,12 +163,12 @@ elif st.session_state.page == "count":
         container_boxes_gdf = cc.add_las_elevation_stats(filtered_las_path, geojson_path=CONTAINER_SEGMENT_GEOJSON_PATH)
         cropped_dsm_path = cc.crop_dsm_by_map_bounds(DSM_TIFF_PATH, CROPPED_DSM_PATH, map_bounds)
         container_boxes_gdf = cc.add_dsm_elevation_stats(container_boxes_gdf, cropped_dsm_path)
-        container_boxes_gdf = cc.add_elevation(container_boxes_gdf)
+        container_boxes_gdf = cc.add_stack_elevation(container_boxes_gdf)
 
     with st.spinner(text="Cleaning container segments...", show_time=True, width="content"):
         filtered_container_boxes_gdf = cc.filter_clean_container_boxes_gdf(container_boxes_gdf)
         filtered_container_boxes_gdf = cc.add_color_to_containers(USER_SELECTED_AOI_PATH, filtered_container_boxes_gdf)
-        filtered_container_boxes_gdf["n_containers"] = round(filtered_container_boxes_gdf["elev"] / CONTAINER_HEIGHT, 0)
+        filtered_container_boxes_gdf["n_containers"] = round(filtered_container_boxes_gdf["stack_height"] / CONTAINER_HEIGHT, 0)
         n_containers = int(filtered_container_boxes_gdf.n_containers.sum())
         n_container_stacks = len(filtered_container_boxes_gdf)
         
@@ -176,11 +176,13 @@ elif st.session_state.page == "count":
         reference_containers_gdf = cc.crop_reference_container_geojson(map_bounds)
         reference_containers_gdf = cc.add_las_elevation_stats(filtered_las_path, gdf=reference_containers_gdf)
         reference_containers_gdf = cc.add_dsm_elevation_stats(reference_containers_gdf, cropped_dsm_path)
-        reference_containers_gdf = cc.add_elevation(reference_containers_gdf)
-        reference_containers_gdf = cc.add_color_to_containers(USER_SELECTED_AOI_PATH, reference_containers_gdf)
+        reference_containers_gdf = cc.add_stack_elevation(reference_containers_gdf)
+        reference_containers_gdf = cc.add_color_to_containers(USER_SELECTED_AOI_PATH, reference_containers_gdf, reference_container=True)
         
-        reference_containers_gdf["n_containers"] = round(filtered_container_boxes_gdf["elev"] / CONTAINER_HEIGHT, 0)
-        n_ref_containers = int(filtered_container_boxes_gdf.n_containers.sum())
+        reference_containers_gdf = reference_containers_gdf[reference_containers_gdf['stack_height'] >= CONTAINER_HEIGHT]
+        
+        reference_containers_gdf["n_containers"] = round(reference_containers_gdf["stack_height"] / CONTAINER_HEIGHT, 0)
+        n_ref_containers = int(reference_containers_gdf.n_containers.sum())
         n_ref_container_stacks = len(reference_containers_gdf)
 
         n_stacks_col, n_containers_col = st.columns([1, 1])
@@ -194,12 +196,30 @@ elif st.session_state.page == "count":
                             f"{round(n_containers * 100 / n_ref_containers, 1)}%",
                             border=True, delta_arrow="off")
 
+        with st.expander("View stack size frequency distribution"):
+            df = filtered_container_boxes_gdf
+
+            agg = (
+                df["n_containers"]
+                .value_counts()
+                .sort_index()
+                .reset_index()
+            )
+
+            agg.columns = ["n_containers", "num_stacks"]
+            
+            st.bar_chart(
+                agg,
+                x="n_containers",
+                y="num_stacks"
+            )
+        
         with st.expander("View segmentation"):
             image_path = cc.plot_image(filtered_container_boxes_gdf, reference_containers_gdf, USER_SELECTED_AOI_PATH)
             st.image(image_path)
             
-        with st.expander("View reference containers"):
-            cc.add_3d_visualisation(reference_containers_gdf)
+        # with st.expander("View reference containers"):
+        #     cc.add_3d_visualisation(reference_containers_gdf)
 
         cc.add_3d_visualisation(filtered_container_boxes_gdf)
 
