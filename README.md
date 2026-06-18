@@ -74,7 +74,7 @@ The four corner points of each box are then converted from pixel coordinates to 
 
 Two elevation sources are used together because they capture different things:
 
-- **LiDAR (LAS)**: The point cloud is filtered to the tile's bounding box, and a spatial join assigns each LiDAR return to the polygon it falls within. Per-polygon statistics are computed — including mean, median, max, and standard deviation of the Z values.
+- **LiDAR (LAS)**: The point cloud is filtered to the tile's bounding box, and a spatial join assigns each LiDAR return to the polygon it falls within. Per-polygon statistics are computed including mean, median, max, and standard deviation of the Z values.
 - **DSM (Digital Surface Model)**: Zonal statistics from the DSM raster give the local ground elevation directly beneath each polygon, used as the reference elevation for height calculations.
 
 ### 5. Estimating container counts
@@ -104,6 +104,39 @@ models/sam_vit_b_01ec64.pth
 ```
 
 Make sure the filename matches exactly.
+
+### What SAM does and does not know
+
+SAM has no concept of what a shipping container is. It segments regions based purely on visual boundaries contrast, texture, and edge information without any semantic understanding. This is both a strength and a limitation. It means SAM generalises well to aerial imagery without retraining, but it also means it will confidently segment shadows, road markings, and rooftops alongside containers. The elevation-based filtering steps downstream do the semantic heavy lifting of deciding which segments are actually containers.
+
+---
+
+## Filtering and Assumptions
+
+Several filtering steps and fixed assumptions are applied during the container counting process. These are currently hardcoded and were tuned for the original dataset. If you are applying the app to a different site, these are the values most likely to need adjustment.
+
+### Segmentation filters
+
+| Parameter | Value | Purpose |
+|---|---|---|
+| `pred_iou_thresh` | 0.80 | Removes masks where SAM has low confidence in boundary quality |
+| `stability_score_thresh` | 0.80 | Removes masks that are inconsistent across threshold perturbations |
+| `min_mask_region_area` | 500 px | Removes very small segments likely to be noise |
+
+### Elevation filters
+
+After elevation statistics are added, a second round of filtering removes non-container detections:
+
+- **`std_z < 5`** - removes polygons with high vertical variance within their footprint, typically narrow tall structures such as floodlight poles rather than flat-topped container stacks.
+- **`mean_z > 51`** - removes ground-level detections by requiring a minimum absolute elevation. This value reflects the site's ground elevation and will need to be updated for different locations.
+- **`area_px` between 2,000 and 15,000** - removes segments that are too small (noise) or too large (buildings, open ground) to plausibly be individual container stacks.
+- **`elev > 3`** -  removes any polygon whose calculated above-ground height is less than 3 metres, filtering out detections sitting at or near ground level.
+
+### Platform correction
+
+At some sites, containers are stacked on elevated platforms or plinths. Where calculated stack height exceeds 18 metres, 16 metres is subtracted from the elevation and stored separately as `base_height`. This offset is used to set the base elevation of the extruded polygon in the 3D visualisation, so the stack appears to sit on its platform rather than floating at ground level.
+
+
 
 ## Installation
 
