@@ -18,6 +18,7 @@ CONTAINER_HEIGHT = 2.6
 PREVIEW_IMAGE_PATH = "outputs/preview_image.jpg"
 USER_SELECTED_AOI_PATH = "outputs/preview_tiles/user_cropped_aoi_image.tif"
 CONTAINER_SEGMENT_GEOJSON_PATH = "outputs/preview_tiles/container_segements.geojson"
+REF_CONTAINER_SEGMENT_GEOJSON_PATH = "data/Containers.geojson"
 FILTERED_LAS_PATH = "outputs/preview_tiles/filtered_las.las"
 CROPPED_DSM_PATH = "outputs/preview_tiles/cropped_dsm.tif"
 TILES_OUTPUT_PATH = "outputs/preview_tiles"
@@ -89,14 +90,14 @@ if st.session_state.page == "subset":
                     with rows_col:
                         n_rows = st.number_input(
                             "Tile rows", 
-                            value=4, min_value=2, max_value=10, key="rows",
+                            value=6, min_value=2, max_value=10, key="rows",
                             on_change=si.clear_tiles_output_folder(TILES_OUTPUT_PATH)
                             )
                     
                     with cols_col:
                         n_cols = st.number_input(
                             "Tile columns", 
-                            value=4, min_value=2, max_value=10, key="cols",
+                            value=6, min_value=2, max_value=10, key="cols",
                             on_change=si.clear_tiles_output_folder(TILES_OUTPUT_PATH)
                             )
                         
@@ -125,7 +126,7 @@ if st.session_state.page == "subset":
                     output_path=USER_SELECTED_AOI_PATH,
                     bounds=tiff_crop_bounds,
                 )
-
+        
             # ── Button that navigates to the count page ──
             if st.button("Start container count", type="primary"):
                 st.session_state.tiff_crop_bounds = tiff_crop_bounds
@@ -135,6 +136,7 @@ if st.session_state.page == "subset":
                 st.session_state.nav_dsm_path = DSM_TIFF_PATH
                 st.session_state.page = "count"
                 st.rerun()
+    # st.session_state
 
 # ── COUNT PAGE ─────────────────────────────────────────────────────────────────
 elif st.session_state.page == "count":
@@ -158,22 +160,48 @@ elif st.session_state.page == "count":
     with st.spinner(text="Getting container elevations from LIDAR data...", show_time=True, width="content"):
         map_bounds = cc.pixel_bounds_to_map_bounds(RGB_TIFF_PATH, tiff_crop_bounds)
         filtered_las_path = cc.filter_las_by_map_bounds(LAS_PATH, FILTERED_LAS_PATH, map_bounds)
-        container_boxes_gdf = cc.add_las_elevation_stats(CONTAINER_SEGMENT_GEOJSON_PATH, filtered_las_path)
+        container_boxes_gdf = cc.add_las_elevation_stats(filtered_las_path, geojson_path=CONTAINER_SEGMENT_GEOJSON_PATH)
         cropped_dsm_path = cc.crop_dsm_by_map_bounds(DSM_TIFF_PATH, CROPPED_DSM_PATH, map_bounds)
         container_boxes_gdf = cc.add_dsm_elevation_stats(container_boxes_gdf, cropped_dsm_path)
+        container_boxes_gdf = cc.add_elevation(container_boxes_gdf)
 
     with st.spinner(text="Cleaning container segments...", show_time=True, width="content"):
         filtered_container_boxes_gdf = cc.filter_clean_container_boxes_gdf(container_boxes_gdf)
         filtered_container_boxes_gdf = cc.add_color_to_containers(USER_SELECTED_AOI_PATH, filtered_container_boxes_gdf)
         filtered_container_boxes_gdf["n_containers"] = round(filtered_container_boxes_gdf["elev"] / CONTAINER_HEIGHT, 0)
         n_containers = int(filtered_container_boxes_gdf.n_containers.sum())
+        n_container_stacks = len(filtered_container_boxes_gdf)
+        
+        
+        reference_containers_gdf = cc.crop_reference_container_geojson(map_bounds)
+        reference_containers_gdf = cc.add_las_elevation_stats(filtered_las_path, gdf=reference_containers_gdf)
+        reference_containers_gdf = cc.add_dsm_elevation_stats(reference_containers_gdf, cropped_dsm_path)
+        reference_containers_gdf = cc.add_elevation(reference_containers_gdf)
+        reference_containers_gdf = cc.add_color_to_containers(USER_SELECTED_AOI_PATH, reference_containers_gdf)
+        
+        reference_containers_gdf["n_containers"] = round(filtered_container_boxes_gdf["elev"] / CONTAINER_HEIGHT, 0)
+        n_ref_containers = int(filtered_container_boxes_gdf.n_containers.sum())
+        n_ref_container_stacks = len(reference_containers_gdf)
 
         n_stacks_col, n_containers_col = st.columns([1, 1])
-        n_stacks_col.metric("Container Stacks", len(filtered_container_boxes_gdf), border=True)
-        n_containers_col.metric("Containers", n_containers, border=True)
+        n_stacks_col.metric("Container Stacks", 
+                            f"{n_container_stacks}/{n_ref_container_stacks}", 
+                            f"{round(n_container_stacks  * 100 / n_ref_container_stacks, 1)}%",
+                            border=True, delta_arrow="off")
+        
+        n_containers_col.metric("Containers", 
+                            f"{n_containers}/{n_ref_containers}", 
+                            f"{round(n_containers * 100 / n_ref_containers, 1)}%",
+                            border=True, delta_arrow="off")
 
         with st.expander("View segmentation"):
-            image_path = cc.plot_image(filtered_container_boxes_gdf, USER_SELECTED_AOI_PATH)
+            image_path = cc.plot_image(filtered_container_boxes_gdf, reference_containers_gdf, USER_SELECTED_AOI_PATH)
             st.image(image_path)
+            
+        with st.expander("View reference containers"):
+            cc.add_3d_visualisation(reference_containers_gdf)
 
         cc.add_3d_visualisation(filtered_container_boxes_gdf)
+
+
+# st.session_state
