@@ -52,6 +52,45 @@ DSM GeoTIFF:       .tif or .tiff
 
 The RGB image, LAS point cloud, and DSM should cover the same area and should ideally be in the same coordinate reference system.
 
+## How It Works
+
+### 1. Image tiling
+
+Large aerial GeoTIFFs are impractical to process in one pass. The app converts the RGB TIFF to a JPEG preview and divides it into a configurable grid of tiles. The user selects one tile, and its pixel coordinates are mapped back to the original TIFF's geospatial reference frame using rasterio's `Window` and `window_bounds`  giving an exact bounding box in the image's CRS for all downstream steps.
+
+### 2. Segmentation with SAM
+
+The selected tile is passed to the Segment Anything Model (ViT-B), running in automatic mask generation mode. Rather than requiring manual prompts, SAM samples a dense grid of points across the image (`points_per_side=32`) and generates candidate segmentation masks for every distinct region it finds. Each mask is filtered by predicted IOU (≥ 0.80), stability score (≥ 0.80), and minimum region area (≥ 500 px) to discard noise and poorly-defined segments.
+
+SAM is well-suited to this task because it generalises to arbitrary shapes without domain-specific fine-tuning — shipping containers form visually distinct rectangular regions in aerial imagery that the model segments reliably.
+
+### 3. Converting masks to georeferenced polygons
+
+Each binary mask is converted to a contour using OpenCV, and `cv2.minAreaRect` fits a tight rotated bounding box around it. Rotated boxes are used rather than axis-aligned boxes because containers are rarely perfectly north-aligned in aerial imagery.
+
+The four corner points of each box are then converted from pixel coordinates to real-world coordinates using the tile's affine transform, producing a GeoJSON polygon collection in EPSG:32631 with per-polygon area and aspect ratio attributes.
+
+### 4. Enriching polygons with elevation data
+
+Two elevation sources are used together because they capture different things:
+
+- **LiDAR (LAS)**: The point cloud is filtered to the tile's bounding box, and a spatial join assigns each LiDAR return to the polygon it falls within. Per-polygon statistics are computed — including mean, median, max, and standard deviation of the Z values.
+- **DSM (Digital Surface Model)**: Zonal statistics from the DSM raster give the local ground elevation directly beneath each polygon, used as the reference elevation for height calculations.
+
+### 5. Estimating container counts
+
+Stack height is calculated as:
+elev = mean_z (LiDAR) − dsm_mean (DSM)
+
+The number of containers in a stack is estimated by dividing `elev` by the standard container height of approximately 2.6 metres.
+
+### 6. 3D visualisation
+
+The final GeoDataFrame is reprojected to WGS84 and rendered as an extruded `PolygonLayer` in pydeck. Each polygon is extruded to its calculated stack height, and the fill colour is sampled directly from the mean RGB value of the corresponding pixels in the source image — so containers appear in their actual colours.
+
+---
+
+
 ## Segment Anything Model Checkpoint
 
 This app uses the [Segment Anything](https://github.com/facebookresearch/segment-anything/tree/main) ViT-B checkpoint: [ViT-B SAM model.](https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth)
