@@ -62,7 +62,7 @@ Large aerial GeoTIFFs are impractical to process in one pass. The app converts t
 
 The selected tile is passed to the Segment Anything Model (ViT-B), running in automatic mask generation mode. Rather than requiring manual prompts, SAM samples a dense grid of points across the image (`points_per_side=32`) and generates candidate segmentation masks for every distinct region it finds. Each mask is filtered by predicted IOU (≥ 0.80), stability score (≥ 0.80), and minimum region area (≥ 500 px) to discard noise and poorly-defined segments.
 
-SAM is well-suited to this task because it generalises to arbitrary shapes without domain-specific fine-tuning — shipping containers form visually distinct rectangular regions in aerial imagery that the model segments reliably.
+SAM is well-suited to this task because it generalises to arbitrary shapes without domain-specific fine-tuning shipping containers form visually distinct rectangular regions in aerial imagery that the model segments reliably.
 
 ### 3. Converting masks to georeferenced polygons
 
@@ -86,7 +86,7 @@ The number of containers in a stack is estimated by dividing `elev` by the stand
 
 ### 6. 3D visualisation
 
-The final GeoDataFrame is reprojected to WGS84 and rendered as an extruded `PolygonLayer` in pydeck. Each polygon is extruded to its calculated stack height, and the fill colour is sampled directly from the mean RGB value of the corresponding pixels in the source image — so containers appear in their actual colours.
+The final GeoDataFrame is reprojected to WGS84 and rendered as an extruded `PolygonLayer` in pydeck. Each polygon is extruded to its calculated stack height, and the fill colour is sampled directly from the mean RGB value of the corresponding pixels in the source image so containers appear in their actual colours.
 
 ---
 
