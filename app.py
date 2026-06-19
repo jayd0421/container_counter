@@ -218,7 +218,7 @@ elif st.session_state.page == "count":
                 y="num_stacks"
             )
         
-
+        with st.expander("View segmentation"):
             image_path = cc.plot_image(filtered_container_boxes_gdf, reference_containers_gdf, USER_SELECTED_AOI_PATH)            
             st.image(image_path)
             
