@@ -1,6 +1,7 @@
 # Data and generated outputs
 data/*
 outputs/
+test_notebooks/
 
 !data/
 !data/*.geojson
