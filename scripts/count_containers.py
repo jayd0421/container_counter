@@ -512,30 +512,30 @@ def add_3d_visualisation(container_boxes_gdf):
         initial_view_state=view_state,
         map_style=pdk.map_styles.LIGHT,
         # map_style="mapbox://styles/mapbox/satellite-v9",
-        # tooltip = {
-        #     "html": """
-        #     <b>Stack height:</b> {stack_height}<br>
-        #     <b>Containers:</b> {n_containers}
-        #     """,
-        #     "style": {"color": "white"},
-        # },
-         tooltip = {
+        tooltip = {
             "html": """
             <b>Stack height:</b> {stack_height}<br>
-            <b>Containers:</b> {n_containers}<br>
-            <b>mean_z:</b> {mean_z}<br>
-            <b>median_z:</b> {median_z}<br>
-            <b>dsm_mean:</b> {dsm_mean}<br>
-            <b>dsm_median:</b> {dsm_median}<br>
-            <b>std_z:</b> {std_z}<br>
-            <b>area_px:</b> {area_px}<br>
-            <b>area:</b> {area}<br>
-            <b>aspect_ratio:</b> {aspect_ratio}<br>
-            <b>point_count:</b> {point_count}<br>
-            <b>color:</b> {color}
+            <b>Containers:</b> {n_containers}
             """,
             "style": {"color": "white"},
         },
+        #  tooltip = {
+        #     "html": """
+        #     <b>Stack height:</b> {stack_height}<br>
+        #     <b>Containers:</b> {n_containers}<br>
+        #     <b>mean_z:</b> {mean_z}<br>
+        #     <b>median_z:</b> {median_z}<br>
+        #     <b>dsm_mean:</b> {dsm_mean}<br>
+        #     <b>dsm_median:</b> {dsm_median}<br>
+        #     <b>std_z:</b> {std_z}<br>
+        #     <b>area_px:</b> {area_px}<br>
+        #     <b>area:</b> {area}<br>
+        #     <b>aspect_ratio:</b> {aspect_ratio}<br>
+        #     <b>point_count:</b> {point_count}<br>
+        #     <b>color:</b> {color}
+        #     """,
+        #     "style": {"color": "white"},
+        # },
     )
     
     # deck.to_html("test.html")
