@@ -33,6 +33,8 @@ The app has two main tabs:
 ├── scripts/
 │   ├── subset_image.py
 │   └── count_containers.py
+├── data/
+│   └── containers.geojson
 ├── models/
 │   └── sam_vit_b_01ec64.pth
 ├── requirements.txt
@@ -127,10 +129,10 @@ Several filtering steps and fixed assumptions are applied during the container c
 
 After elevation statistics are added, a second round of filtering removes non-container detections:
 
-- **`std_z < 5`** - removes polygons with high vertical variance within their footprint, typically narrow tall structures such as floodlight poles rather than flat-topped container stacks.
-- **`mean_z > 51`** - removes ground-level detections by requiring a minimum absolute elevation. This value reflects the site's ground elevation and will need to be updated for different locations.
+- **`std_z < 8.5`** - removes polygons with high vertical variance within their footprint, typically narrow tall structures such as floodlight poles rather than flat-topped container stacks.
+- **`mean_z > 50`** - removes ground-level detections by requiring a minimum absolute elevation. This value reflects the site's ground elevation and will need to be updated for different locations.
 - **`area_px` between 2,000 and 15,000** - removes segments that are too small (noise) or too large (buildings, open ground) to plausibly be individual container stacks.
-- **`elev > 3`** -  removes any polygon whose calculated above-ground height is less than 3 metres, filtering out detections sitting at or near ground level.
+- **`elev >= 2.6`** -  removes any polygon whose calculated above-ground height is less than 2.6 metres, filtering out detections sitting at or near ground level.
 
 
 ## Installation
@@ -244,13 +246,11 @@ The selected tile is mapped back to the original TIFF pixel coordinates using me
 
 ### Step 6: Start container counting
 
-Activate:
+Click:
 
 ```text
 Start container count
 ```
-
-Then go to the **Count containers** tab.
 
 The app will:
 
