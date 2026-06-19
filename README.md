@@ -33,6 +33,8 @@ The app has two main tabs:
 ├── scripts/
 │   ├── subset_image.py
 │   └── count_containers.py
+├── data/
+│   └── containers.geojson
 ├── models/
 │   └── sam_vit_b_01ec64.pth
 ├── requirements.txt
