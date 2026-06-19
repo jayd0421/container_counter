@@ -246,13 +246,11 @@ The selected tile is mapped back to the original TIFF pixel coordinates using me
 
 ### Step 6: Start container counting
 
-Activate:
+Click:
 
 ```text
 Start container count
 ```
-
-Then go to the **Count containers** tab.
 
 The app will:
 
