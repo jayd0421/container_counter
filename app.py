@@ -77,7 +77,8 @@ if st.session_state.page == "subset":
         si.tiff_to_jpeg(RGB_TIFF_PATH, PREVIEW_IMAGE_PATH)
 
         with image_subset_method_col:
-            image_subset_method = st.radio("Subset method", ["BBOX", "Tiles"], key="subset", horizontal=True)
+            image_subset_method = st.radio("Subset method", ["BBOX", "Tiles"], key="subset", horizontal=True, 
+                                           on_change=si.clear_tiles_output_folder(TILES_OUTPUT_PATH))
 
         if image_subset_method == "BBOX":
             st.warning("This option is not available yet. Select Tiles.")
@@ -144,6 +145,7 @@ elif st.session_state.page == "count":
 
     if st.button("← Back to subset"):
         st.session_state.page = "subset"
+        si.clear_tiles_output_folder(TILES_OUTPUT_PATH)
         st.rerun()
 
     tiff_crop_bounds = st.session_state.tiff_crop_bounds
@@ -152,10 +154,12 @@ elif st.session_state.page == "count":
     RGB_TIFF_PATH = st.session_state.nav_rgb_path
     DSM_TIFF_PATH = st.session_state.nav_dsm_path
 
+
     with st.spinner(text="Generating container masks...", show_time=True, width="content"):
         masks = cc.generate_container_segment_masks(user_selected_image_path, SAM_MODEL_PATH)
         boxes = cc.convert_masks_to_boxes(masks)
         cc.convert_boxes_to_geojson(boxes, USER_SELECTED_AOI_PATH, CONTAINER_SEGMENT_GEOJSON_PATH)
+
 
     with st.spinner(text="Getting container elevations from LIDAR data...", show_time=True, width="content"):
         map_bounds = cc.pixel_bounds_to_map_bounds(RGB_TIFF_PATH, tiff_crop_bounds)
@@ -214,8 +218,8 @@ elif st.session_state.page == "count":
                 y="num_stacks"
             )
         
-        with st.expander("View segmentation"):
-            image_path = cc.plot_image(filtered_container_boxes_gdf, reference_containers_gdf, USER_SELECTED_AOI_PATH)
+
+            image_path = cc.plot_image(filtered_container_boxes_gdf, reference_containers_gdf, USER_SELECTED_AOI_PATH)            
             st.image(image_path)
             
         # with st.expander("View reference containers"):
