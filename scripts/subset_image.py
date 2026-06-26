@@ -1,10 +1,11 @@
 import streamlit as st
+import os
 from pathlib import Path
+import re
 from PIL import Image
 import rasterio
 from rasterio.windows import Window
 import math
-import os
 import json
 import shutil
 from datetime import datetime
@@ -216,10 +217,6 @@ def list_files_in_folder(folder_path):
         print(f"Unexpected error: {e}")
 
     return files
-
-from pathlib import Path
-import re
-
 
 def tile_to_tiff_bounds_from_selected_image(metadata, user_selected_image_path):
     """
