@@ -7,7 +7,7 @@ import scripts.subset_image as si
 import scripts.count_containers as cc
 
 st.set_page_config(
-   page_title="Container Counter App",
+   page_title="Container Counter",
 )
 
 Image.MAX_IMAGE_PIXELS = None
@@ -190,12 +190,12 @@ elif st.session_state.page == "count":
         n_ref_container_stacks = len(reference_containers_gdf)
 
         n_stacks_col, n_containers_col = st.columns([1, 1])
-        n_stacks_col.metric("Container Stacks", 
+        n_stacks_col.metric("Container Stacks Detected", 
                             f"{n_container_stacks}/{n_ref_container_stacks}", 
                             f"{round(n_container_stacks  * 100 / n_ref_container_stacks, 1)}%",
                             border=True, delta_arrow="off")
         
-        n_containers_col.metric("Containers", 
+        n_containers_col.metric("Containers Detected", 
                             f"{n_containers}/{n_ref_containers}", 
                             f"{round(n_containers * 100 / n_ref_containers, 1)}%",
                             border=True, delta_arrow="off")
