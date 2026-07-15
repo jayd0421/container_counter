@@ -12,16 +12,25 @@ from datetime import datetime
 
 def tiff_to_jpeg(tiff_path, jpeg_path=None, quality=95):
     """
-    Convert a TIFF image to JPEG.
+    Convert a TIFF image to a JPEG preview image.
+
+    The function opens a TIFF image, converts it to RGB, and saves it as a JPEG.
+    This is useful for creating a lighter preview image from a large TIFF.
 
     Parameters
     ----------
-    tiff_path : str or Path
-        Path to the input TIFF file.
-    jpeg_path : str or Path, optional
-        Path to save the output JPEG. If not provided, uses the same name with .jpg.
-    quality : int
-        JPEG quality from 1 to 100.
+    tiff_path : str or pathlib.Path
+        Path to the input TIFF image.
+    jpeg_path : str or pathlib.Path, optional
+        Path where the output JPEG should be saved. If None, the JPEG is saved
+        using the same filename as the TIFF but with a .jpg extension.
+    quality : int, optional
+        JPEG output quality, from 1 to 100.
+
+    Returns
+    -------
+    pathlib.Path
+        Path to the saved JPEG file.
     """
     
     os.makedirs("outputs/", exist_ok=True)
@@ -49,32 +58,36 @@ def tile_jpeg_preview_with_metadata(
     quality=95
 ):
     """
-    Tile a JPEG preview image using user-specified rows and columns,
-    and save metadata that links each JPEG tile back to the original TIFF.
+    Tile a JPEG preview image and create metadata linking each tile to the original TIFF.
+
+    The function divides a JPEG preview image into a user-defined number of rows and
+    columns. Each tile is saved as a JPEG image. Metadata is also created to record
+    the tile row, column, JPEG pixel bounds, TIFF pixel bounds, and scaling between
+    the JPEG preview and the original TIFF image.
 
     Parameters
     ----------
-    jpeg_path : str or Path
-        Path to the JPEG preview image shown to the user.
-    tiff_path : str or Path
-        Path to the original TIFF image.
+    jpeg_path : str or pathlib.Path
+        Path to the JPEG preview image.
+    tiff_path : str or pathlib.Path
+        Path to the original TIFF image from which the preview was created.
     rows : int
-        Number of tile rows specified by the user.
+        Number of tile rows.
     cols : int
-        Number of tile columns specified by the user.
-    output_dir : str or Path
-        Folder where JPEG tiles and metadata JSON will be saved.
+        Number of tile columns.
+    output_dir : str or pathlib.Path
+        Directory where the image tiles and metadata JSON file will be saved.
     prefix : str, optional
-        Prefix for output tile names.
-    quality : int
-        JPEG output quality.
+        Prefix used for output tile filenames. If None, the JPEG filename stem is used.
+    quality : int, optional
+        JPEG output quality for the saved tiles, from 1 to 100.
 
     Returns
     -------
     dict
-        Full tiling metadata.
+        Metadata dictionary containing the source image paths, image sizes, scale
+        factors, and per-tile JPEG and TIFF pixel bounds.
     """
-
     jpeg_path = Path(jpeg_path)
     tiff_path = Path(tiff_path)
     output_dir = Path(output_dir)
@@ -173,7 +186,21 @@ def tile_jpeg_preview_with_metadata(
 
 def clear_tiles_output_folder(tiles_output_path):
     """
-    Clear the existing image tiles when rows or columns change.
+    Clear the folder containing generated image tiles.
+
+    The function deletes the existing tile output folder, recreates it, and clears
+    the selected tile from Streamlit session state if it exists. This is useful when
+    the user changes the number of tile rows or columns.
+
+    Parameters
+    ----------
+    tiles_output_path : str or pathlib.Path
+        Path to the folder containing generated image tiles.
+
+    Returns
+    -------
+    None
+        The folder is cleared and recreated in place.
     """
     
     tiles_output_path = Path(tiles_output_path)
@@ -191,8 +218,22 @@ def clear_tiles_output_folder(tiles_output_path):
 
 def list_files_in_folder(folder_path):
     """
-    Returns a list of file names in the given folder.
-    Only regular files are included (no directories).
+    List JPEG image files in a folder.
+
+    The function scans the given folder and returns full paths to all regular
+    with a .jpg extension. It is used to collect generated image tiles for display
+    in the Streamlit image selection widget.
+
+    Parameters
+    ----------
+    folder_path : str or pathlib.Path
+        Path to the folder to search.
+
+    Returns
+    -------
+    list of str
+        List of full file paths to .jpg images found in the folder. If the folder
+        does not exist or no JPEG files are found, an empty list is returned.
     """
     files = []
     try:
@@ -220,10 +261,24 @@ def list_files_in_folder(folder_path):
 
 def tile_to_tiff_bounds_from_selected_image(metadata, user_selected_image_path):
     """
-    Return original TIFF pixel bounds for the selected JPEG tile.
+    Return original TIFF pixel bounds for a selected JPEG tile.
 
-    selected_image_path can be a full path or filename, for example:
-    outputs/tiff_image_chips/tiff_image_r1_c4.jpeg
+    The function extracts the row and column number from the selected tile filename,
+    then searches the tile metadata to find the matching TIFF pixel bounds.
+
+    Parameters
+    ----------
+    metadata : dict
+        Metadata dictionary created by tile_jpeg_preview_with_metadata().
+    user_selected_image_path : str or pathlib.Path
+        Path to the selected JPEG tile. The filename must contain row and column
+        information in the format _r<row>_c<col>.
+
+    Returns
+    -------
+    dict
+        Dictionary containing the selected tile bounds in original TIFF pixel
+        coordinates. The dictionary includes left, top, right, bottom, width, and height.
     """
 
     selected_image_name = Path(user_selected_image_path).name
@@ -252,9 +307,32 @@ def crop_on_full_preview_to_tiff_bounds(
     crop_height
 ):
     """
-    Convert a crop drawn on the full JPEG preview image to original TIFF pixel bounds.
-    """
+    Convert a crop drawn on the full JPEG preview into original TIFF pixel bounds.
 
+    The function uses the scale factors stored in the metadata to convert crop
+    coordinates from the JPEG preview coordinate system to the original TIFF pixel
+    coordinate system.
+
+    Parameters
+    ----------
+    metadata : dict
+        Metadata dictionary containing scale factors between the JPEG preview and
+        original TIFF image.
+    crop_x : int or float
+        X-coordinate of the crop origin on the JPEG preview.
+    crop_y : int or float
+        Y-coordinate of the crop origin on the JPEG preview.
+    crop_width : int or float
+        Width of the crop on the JPEG preview.
+    crop_height : int or float
+        Height of the crop on the JPEG preview.
+
+    Returns
+    -------
+    dict
+        Dictionary containing the crop bounds in original TIFF pixel coordinates.
+        The dictionary includes left, top, right, bottom, width, and height.
+    """
     scale_x = metadata["scale"]["x"]
     scale_y = metadata["scale"]["y"]
 
@@ -280,11 +358,29 @@ def crop_tiff_using_bounds(
     overwrite=True
 ):
     """
-    Crop original TIFF using pixel bounds.
+    Crop a TIFF image using pixel bounds.
 
-    If overwrite=False and output_path already exists, an error is raised.
+    The function reads a window from the input TIFF based on the supplied pixel
+    bounds and writes the cropped raster to a new TIFF file while preserving the
+    correct geospatial transform.
+
+    Parameters
+    ----------
+    tiff_path : str or pathlib.Path
+        Path to the input TIFF image.
+    output_path : str or pathlib.Path
+        Path where the cropped TIFF should be saved.
+    bounds : dict
+        Pixel bounds used for cropping. Must contain left, top, width, and height.
+    overwrite : bool, optional
+        If False and output_path already exists, a FileExistsError is raised.
+        If True, an existing output file may be overwritten.
+
+    Returns
+    -------
+    pathlib.Path
+        Path to the saved cropped TIFF file.
     """
-
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
